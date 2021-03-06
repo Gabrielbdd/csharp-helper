@@ -1,6 +1,5 @@
 import * as path from 'path';
 import * as fs from 'fs';
-import * as os from 'os';
 
 export function findCsProjFile(p: string) {
     for (let n = 0; n < 10; n++) {
@@ -25,13 +24,10 @@ export function findCsProjFile(p: string) {
 
 
 export function generateNamespace(projectPath: string, currentPath: string) {
-    const rootNamespace = projectPath.substr(projectPath.lastIndexOf('\\'));
+    const rootNamespace = projectPath.substr(projectPath.lastIndexOf(path.sep));
     let namespace = rootNamespace + currentPath.replace(projectPath, '');
 
-    var pathSepRegEx = /\//g;
-    if (os.platform() === "win32") {
-        pathSepRegEx = /\\/g;
-    }
+    const pathSepRegEx = new RegExp(`\\${path.sep}`, 'g');
 
     namespace = namespace.replace(pathSepRegEx, '.');
     namespace = namespace.replace(/\s+/g, "_");

@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
-import * as os from 'os';
 import * as path from 'path';
 import * as fs from 'fs';
+import { findCsProjFile, generateNamespace } from './utilities';
 
 const ignoredDirectories = [
     'obj',
@@ -83,39 +83,19 @@ async function createFile(filename: string, templateName: string, objectName: st
     fs.writeFileSync(filename, text);
 }
 
-function generateNamespace(projectPath: string, selectedPath: string) {
-    const rootNamespace = projectPath.substr(projectPath.lastIndexOf('\\'));
-    let namespace = rootNamespace + selectedPath.replace(projectPath, '');
-
-    var pathSepRegEx = /\//g;
-    if (os.platform() === "win32") {
-        pathSepRegEx = /\\/g;
-    }
-
-    namespace = namespace.replace(pathSepRegEx, '.');
-    namespace = namespace.replace(/\s+/g, "_");
-    namespace = namespace.replace(/-/g, "_");
-    if (namespace.startsWith('.')) {
-        namespace = namespace.substr(1);
-    }
-
-    return namespace;
-}
-
-async function promptForPath(): Promise<string> {
+async function promptForPath(): Promise<string | undefined> {
     let pathInput = _lastSelectedPath;
-    let selectedPath = '';
-    while (selectedPath == '') {
+    while (true) {
         let pathSelectionArray = getDirectories(pathInput);
         let quickPickItems: vscode.QuickPickItem[] = [];
         if (pathInput != vscode.workspace.rootPath) {
             quickPickItems.push(<vscode.QuickPickItem>{
-                label: '<Up>',
+                label: '..',
                 description: path.join(pathInput, '..')
             });
         }
         quickPickItems.push(<vscode.QuickPickItem>{
-            label: '<Here>',
+            label: '.',
             description: pathInput
         });
 
@@ -127,21 +107,19 @@ async function promptForPath(): Promise<string> {
 
         const selection = await vscode.window.showQuickPick(quickPickItems);
         if (typeof selection === 'undefined') {
-            break;
+            return;
         }
 
-        if (selection.label === '<Here>') {
-            selectedPath = pathInput;
+        if (selection.label === '.') {
+            return pathInput;
         }
-        else if (selection.label === '<Up>') {
+        else if (selection.label === '..') {
             pathInput = path.join(pathInput, '..');
         }
         else {
             pathInput = path.join(pathInput, selection.label);
         }
     }
-
-    return selectedPath;
 }
 
 function getDirectories(p: string) {
@@ -161,25 +139,4 @@ function getDirectories(p: string) {
     }
 
     return directories;
-}
-
-function findCsProjFile(p: string) {
-    for (let n = 0; n < 10; n++) {
-
-        let pathContent = fs.readdirSync(p, { withFileTypes: true });
-        for (let i = 0; i < pathContent.length; i++) {
-            var pathItem = pathContent[i];
-            if (pathItem.isDirectory()) {
-                continue;
-            }
-
-            if (pathItem.name.endsWith('.csproj')) {
-                return p;
-            }
-        }
-
-        p = path.join(p, '..');
-    }
-
-    return undefined;
 }
